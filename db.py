@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime, timezone
 
 # The database is one file, stored next to this script
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chats.db")
@@ -11,26 +12,37 @@ def connect():
     return conn
 
 
+def add_column_if_missing(conn, table, column, definition):
+    """Migration helper: add a column to an existing table if it isn't there yet.
+
+    CREATE TABLE IF NOT EXISTS won't add new columns to an old table, so
+    databases created by earlier versions of the app need this.
+    (Table and column names can't use ? placeholders, so they're put in the
+    SQL directly. That's safe here because they're our own fixed strings.)
+    """
+    columns = [row["name"] for row in conn.execute(f"PRAGMA table_info({table})")]
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_db():
     """Create the tables if they don't exist yet. Safe to call on every rerun."""
     conn = connect()
+    # user_id says who a chat belongs to: "owner", or a visitor's random id
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS conversations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL DEFAULT 'owner',
             title TEXT NOT NULL,
             system_prompt TEXT NOT NULL DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
-    # Migration: databases created before Stage 5 don't have the
-    # system_prompt column (CREATE TABLE IF NOT EXISTS won't add it), so add it
-    columns = [row["name"] for row in conn.execute("PRAGMA table_info(conversations)")]
-    if "system_prompt" not in columns:
-        conn.execute(
-            "ALTER TABLE conversations ADD COLUMN system_prompt TEXT NOT NULL DEFAULT ''"
-        )
+    add_column_if_missing(conn, "conversations", "system_prompt", "TEXT NOT NULL DEFAULT ''")
+    # Chats from before visitors existed belong to the owner
+    add_column_if_missing(conn, "conversations", "user_id", "TEXT NOT NULL DEFAULT 'owner'")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS messages (
@@ -42,32 +54,49 @@ def init_db():
         )
         """
     )
+    # One row per day: how many free demo questions all visitors used that day
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS daily_usage (
+            day TEXT PRIMARY KEY,
+            count INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
     conn.commit()
     conn.close()
 
 
-def create_conversation(title="New chat"):
-    """Create a new conversation and return its id."""
+def create_conversation(user_id, title="New chat"):
+    """Create a new conversation for this user and return its id."""
     conn = connect()
-    cursor = conn.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
+    cursor = conn.execute(
+        "INSERT INTO conversations (user_id, title) VALUES (?, ?)", (user_id, title)
+    )
     conn.commit()
     conversation_id = cursor.lastrowid
     conn.close()
     return conversation_id
 
 
-def get_latest_conversation_id():
-    """Return the id of the newest conversation, or None if there are none."""
+def get_latest_conversation_id(user_id):
+    """Return the id of this user's newest conversation, or None if they have none."""
     conn = connect()
-    row = conn.execute("SELECT id FROM conversations ORDER BY id DESC LIMIT 1").fetchone()
+    row = conn.execute(
+        "SELECT id FROM conversations WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+        (user_id,),
+    ).fetchone()
     conn.close()
     return row["id"] if row else None
 
 
-def list_conversations():
-    """Return all conversations (id and title), newest first."""
+def list_conversations(user_id):
+    """Return this user's conversations (id and title), newest first."""
     conn = connect()
-    rows = conn.execute("SELECT id, title FROM conversations ORDER BY id DESC").fetchall()
+    rows = conn.execute(
+        "SELECT id, title FROM conversations WHERE user_id = ? ORDER BY id DESC",
+        (user_id,),
+    ).fetchall()
     conn.close()
     return [{"id": row["id"], "title": row["title"]} for row in rows]
 
@@ -136,3 +165,31 @@ def get_messages(conversation_id):
     ).fetchall()
     conn.close()
     return [{"role": row["role"], "content": row["content"]} for row in rows]
+
+
+def today():
+    """Today's date in UTC, e.g. '2026-10-20'. The daily limit resets at midnight UTC."""
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def get_daily_count():
+    """How many free demo questions all visitors have used today."""
+    conn = connect()
+    row = conn.execute("SELECT count FROM daily_usage WHERE day = ?", (today(),)).fetchone()
+    conn.close()
+    return row["count"] if row else 0
+
+
+def increment_daily_count():
+    """Add one to today's counter, in a single statement (an "upsert"):
+    insert today's row with count 1, or if it already exists, add 1 to it."""
+    conn = connect()
+    conn.execute(
+        """
+        INSERT INTO daily_usage (day, count) VALUES (?, 1)
+        ON CONFLICT(day) DO UPDATE SET count = count + 1
+        """,
+        (today(),),
+    )
+    conn.commit()
+    conn.close()

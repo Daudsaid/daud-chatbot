@@ -26,9 +26,33 @@ BUSY_MESSAGE = (
     "Please try again in a moment."
 )
 
+KEY_REJECTED_MESSAGE = (
+    "That API key was rejected. Check that it's a valid Google Gemini API key."
+)
 
-def stream_reply(messages, system_prompt=""):
-    """Send the chat history to the model and yield the reply piece by piece."""
+# Replies that are really errors: shown once, but never saved or counted
+ERROR_MESSAGES = (RATE_LIMIT_MESSAGE, BUSY_MESSAGE, KEY_REJECTED_MESSAGE)
+
+
+def hide_key(error, api_key):
+    """The error as text for the log, with a visitor's key blanked out just in case."""
+    text = str(error)
+    return text.replace(api_key, "[hidden]") if api_key else text
+
+
+def stream_reply(messages, system_prompt="", api_key=None):
+    """Send the chat history to the model and yield the reply piece by piece.
+
+    api_key is a visitor's own key (optional). It's used for this one request
+    only: never saved and never printed.
+    """
+    # Use the visitor's own key if they gave one, otherwise the app's key.
+    # BASE_URL is always ours, so requests can't be sent anywhere else.
+    if api_key:
+        chat_client = OpenAI(base_url=BASE_URL, api_key=api_key, timeout=30, max_retries=0)
+    else:
+        chat_client = client
+
     recent = messages[-MAX_HISTORY:]
     # The system prompt always goes first and isn't counted in the 20-message cap
     if system_prompt.strip():
@@ -36,7 +60,7 @@ def stream_reply(messages, system_prompt=""):
     start = time.time()
     print(f"[llm] request sent ({len(recent)} messages)", flush=True)
     try:
-        stream = client.chat.completions.create(
+        stream = chat_client.chat.completions.create(
             model=MODEL, messages=recent, stream=True
         )
         print(f"[llm] connection open after {time.time() - start:.2f}s", flush=True)
@@ -52,10 +76,17 @@ def stream_reply(messages, system_prompt=""):
     except RateLimitError as e:
         # HTTP 429: show a friendly message instead of crashing.
         # The printed error says which quota was hit (per minute or per day).
-        print(f"[llm] 429 after {time.time() - start:.2f}s: {e}", flush=True)
+        print(f"[llm] 429 after {time.time() - start:.2f}s: {hide_key(e, api_key)}", flush=True)
         yield RATE_LIMIT_MESSAGE
     except (APIConnectionError, APIStatusError) as e:
         # Timeouts, network problems, and 5xx errors such as 503 "high demand"
         # Print the real error so you can tell "overloaded" from "bad key/model"
-        print(f"[llm] {type(e).__name__} after {time.time() - start:.2f}s: {e}", flush=True)
-        yield BUSY_MESSAGE
+        print(
+            f"[llm] {type(e).__name__} after {time.time() - start:.2f}s: {hide_key(e, api_key)}",
+            flush=True,
+        )
+        # With a visitor's key, 400/401/403 almost always means the key is wrong
+        if api_key and getattr(e, "status_code", None) in (400, 401, 403):
+            yield KEY_REJECTED_MESSAGE
+        else:
+            yield BUSY_MESSAGE

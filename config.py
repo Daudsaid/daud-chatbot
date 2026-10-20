@@ -8,8 +8,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_setting(name):
-    """Read a setting from .env (local) or st.secrets (Streamlit Cloud)."""
+def get_setting(name, default=None):
+    """Read a setting from .env (local) or st.secrets (Streamlit Cloud).
+
+    If it's missing from both, return the default, or stop with a clear
+    error if there is no default (for required settings like API_KEY).
+    """
     # 1. Local: .env (loaded into environment variables above)
     value = os.getenv(name)
     if value:
@@ -22,6 +26,8 @@ def get_setting(name):
     except Exception:
         pass  # no secrets file at all, which is normal when running locally
 
+    if default is not None:
+        return default
     raise RuntimeError(
         f"Missing setting {name}. Add it to .env (local) "
         "or to the app's Secrets (Streamlit Cloud)."

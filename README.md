@@ -4,8 +4,18 @@ A simple, beginner-friendly AI chatbot built in pure Python. It has a chat UI ma
 
 I built it step by step to learn the basics of AI engineering, so the code is kept short and commented.
 
-<!-- Screenshot placeholder: save a screenshot as docs/screenshot.png, then delete this comment and the "<!--" / "-->" around the line below. -->
-<!-- ![Screenshot of daud-chatbot](docs/screenshot.png) -->
+## Try it
+
+**👉 [Open the live demo](https://YOUR-APP-NAME.streamlit.app)** <!-- TODO: replace with the real app URL -->
+
+No sign-up is needed. As a visitor:
+
+- You get **5 free questions** per visit. The sidebar shows how many you have left.
+- The demo has a **daily limit** shared by all visitors. If it's used up, you'll see "The demo is busy today, please try tomorrow."
+- To keep chatting past either limit, paste your own **Google Gemini API key** into the sidebar. You can get one free at [Google AI Studio](https://aistudio.google.com/apikey). Your key is only kept in your browser session: it's never saved or logged.
+- Your chats are private to your session. Other visitors can't see them, but they're gone once you close or refresh the page.
+
+Want unlimited use? [Run it yourself](#run-it-locally); it only takes a few minutes.
 
 ## Features
 
@@ -14,7 +24,8 @@ I built it step by step to learn the basics of AI engineering, so the code is ke
 - **Multiple chats**: start a new chat, switch between chats, or delete one from the sidebar. Each chat is named after its first message.
 - **SQLite storage**: chats are saved to a local `chats.db` file and are still there after a refresh or restart.
 - **A system prompt for each chat**: give each chat its own instructions, for example "You are a patient Python tutor".
-- **Password gate**: only people who know `APP_PASSWORD` can use the app.
+- **Public demo mode**: visitors can try the app without logging in, with 5 questions per session and a daily cap across everyone. Visitors can use their own API key to keep going, and each visitor only sees their own chats.
+- **Owner login**: log in from the sidebar with `APP_PASSWORD` for unlimited use and your own saved chats.
 - **Switchable providers**: works with Gemini, OpenAI, Groq, Ollama or any other OpenAI-compatible API. You switch by changing three settings; no code changes are needed.
 - **Friendly errors**: rate limits (429) and busy or unavailable servers show a clear message instead of crashing.
 
@@ -30,7 +41,7 @@ I built it step by step to learn the basics of AI engineering, so the code is ke
 ## Project structure
 
 ```
-app.py            The Streamlit UI: password gate, sidebar, chat area
+app.py            The Streamlit UI: demo limits, owner login, sidebar, chat area
 llm.py            Talks to the AI provider: streaming, history cap, error handling
 db.py             All the SQLite code: create tables, save and load chats
 config.py         Reads settings from .env (local) or st.secrets (cloud)
@@ -58,7 +69,11 @@ BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 MODEL=gemini-flash-latest
 API_KEY=your-api-key-here
 APP_PASSWORD=choose-a-password
+DAILY_DEMO_LIMIT=100
 ```
+
+- `APP_PASSWORD` is the password for **Owner login** in the sidebar.
+- `DAILY_DEMO_LIMIT` is optional (the default is 100). It's how many free questions all visitors together can ask per day; the count resets at midnight UTC.
 
 `.env` is listed in `.gitignore`, so your key is never committed. Never share this file.
 
@@ -68,7 +83,7 @@ APP_PASSWORD=choose-a-password
 streamlit run app.py
 ```
 
-It opens in your browser at http://localhost:8501. Enter your `APP_PASSWORD` and start chatting.
+It opens in your browser at http://localhost:8501. Open **Owner login** in the sidebar and enter your `APP_PASSWORD` for unlimited use, or just start chatting as a visitor.
 
 ### Using a different provider
 
@@ -94,6 +109,7 @@ Set `MODEL` to a model name that provider offers.
    MODEL = "gemini-flash-latest"
    API_KEY = "your-api-key-here"
    APP_PASSWORD = "a-long-password-only-you-know"
+   DAILY_DEMO_LIMIT = "100"
    ```
 
 5. Click **Deploy**. The first build takes a few minutes.
@@ -106,4 +122,6 @@ Every `git push` to `main` redeploys the app automatically. To change secrets la
 - **Free-tier rate limits.** Free API keys allow only a limited number of requests per minute and per day. When you hit the limit you'll see a "rate limit reached" message. Wait a minute, or try a lighter model such as `gemini-flash-lite-latest`.
 - **Busy models.** Popular models are sometimes overloaded (error 503). The app shows a "service is busy" message, and you can try again or switch models.
 - **Short memory.** Only the last 20 messages are sent to the model, so in long chats it forgets the earliest messages. The system prompt is always sent.
-- **One shared password.** The password gate is meant for personal use. Everyone who knows the password sees the same chats.
+- **Visitor limits are simple.** The 5-question limit is per browser session, so refreshing the page starts a new session with 5 fresh questions. The daily cap is what really protects the API quota. It also resets on a redeploy, because it's stored in the same temporary SQLite file.
+- **Visitor chats are temporary.** There are no accounts, so a visitor's chats disappear from view when they refresh. They're stored in the server's temporary database until the next restart.
+- **One owner.** Owner login is a single shared password, meant for personal use.
