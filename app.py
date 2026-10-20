@@ -12,7 +12,11 @@ VISITOR_LIMIT = 5  # free questions per visitor session
 # Free questions per day for ALL visitors together (protects the free API quota)
 DAILY_DEMO_LIMIT = int(get_setting("DAILY_DEMO_LIMIT", default="100"))
 
-st.title("daud-chatbot")
+# Browser tab title and icon (must be the first Streamlit command)
+st.set_page_config(page_title="Daud's AI Chatbot", page_icon="💬")
+
+st.title("Daud's AI Chatbot")
+st.caption("Streaming chat with multiple conversations and custom personalities")
 
 # Make sure the database tables exist (does nothing if they already do)
 db.init_db()
@@ -119,8 +123,14 @@ with st.sidebar:
     st.subheader("Chats")
     for conversation in db.list_conversations(current_user_id()):
         is_current = conversation["id"] == st.session_state.conversation_id
+        # Chats with no messages yet are still called "New chat" in the
+        # database. Label them differently so they don't look like a
+        # duplicate of the "New chat" button.
+        label = conversation["title"]
+        if label == "New chat":
+            label = "Current chat" if is_current else "Empty chat"
         if st.button(
-            conversation["title"],
+            label,
             key=f"chat_{conversation['id']}",  # every button needs a unique key
             type="primary" if is_current else "secondary",
             width="stretch",
