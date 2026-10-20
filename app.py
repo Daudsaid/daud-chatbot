@@ -82,9 +82,16 @@ if not st.session_state.is_owner:
         f"Source code on [GitHub]({GITHUB_URL})."
     )
 
+# st.bottom is the area pinned to the bottom of the page. We put the chat
+# input there, with a privacy note under it for visitors.
 # st.chat_input returns the text once the user presses Enter, otherwise None.
-# It always appears at the bottom of the page, wherever it is in the code.
-prompt = st.chat_input("Say something...")
+with st.bottom:
+    prompt = st.chat_input("Say something...")
+    if not st.session_state.is_owner:
+        st.caption(
+            "Demo app: please don't share personal information. "
+            "Messages are stored temporarily."
+        )
 
 # Over a limit? Ignore the new message (the reason is shown below the chat)
 if prompt and limit_message():
