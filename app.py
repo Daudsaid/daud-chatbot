@@ -1,13 +1,21 @@
 import streamlit as st
 
-from llm import stream_reply
+import db
+from llm import BUSY_MESSAGE, RATE_LIMIT_MESSAGE, stream_reply
 
 st.title("daud-chatbot")
 
-# Runs only on the first run: create the message list.
-# On later reruns it already exists, so we keep it.
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Make sure the database tables exist (does nothing if they already do)
+db.init_db()
+
+# Runs only on the first run: pick a conversation and load its messages
+# from the database. On later reruns session_state already has them.
+if "conversation_id" not in st.session_state:
+    conversation_id = db.get_latest_conversation_id()
+    if conversation_id is None:
+        conversation_id = db.create_conversation()
+    st.session_state.conversation_id = conversation_id
+    st.session_state.messages = db.get_messages(conversation_id)
 
 # Every rerun starts here: redraw the whole conversation so far
 for message in st.session_state.messages:
@@ -18,8 +26,9 @@ for message in st.session_state.messages:
 prompt = st.chat_input("Say something...")
 
 if prompt:
-    # 1. Save and show the user's message
+    # 1. Save the user's message (in memory and in the database) and show it
     st.session_state.messages.append({"role": "user", "content": prompt})
+    db.add_message(st.session_state.conversation_id, "user", prompt)
     with st.chat_message("user"):
         st.write(prompt)
 
@@ -27,4 +36,9 @@ if prompt:
     #    arrives and returns the complete text at the end
     with st.chat_message("assistant"):
         reply = st.write_stream(stream_reply(st.session_state.messages))
-    st.session_state.messages.append({"role": "assistant", "content": reply})
+
+    # 3. Save the reply, unless it's one of our error messages
+    #    (those are shown once but not kept in the history)
+    if reply not in (BUSY_MESSAGE, RATE_LIMIT_MESSAGE):
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+        db.add_message(st.session_state.conversation_id, "assistant", reply)
