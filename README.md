@@ -34,13 +34,28 @@ Want unlimited use? [Run it yourself](#run-it-locally); it only takes a few minu
 - **Switchable providers**: works with Gemini, OpenAI, Groq, Ollama or any other OpenAI-compatible API. You switch by changing three settings; no code changes are needed.
 - **Friendly errors**: rate limits (429) and busy or unavailable servers show a clear message instead of crashing.
 
+## What I learned
+
+- **LLMs are stateless.** The model remembers nothing between requests. "Memory" just means resending the conversation history every time, which is why there's a cap of 20 messages.
+- **Streaming with generators.** With `stream=True` the API sends the reply in small chunks. A Python generator `yield`s each chunk, and `st.write_stream` shows them as they arrive.
+- **OpenAI-compatible providers are interchangeable.** Many providers accept the same API format, so one `openai` client can talk to Gemini, OpenAI or a local Ollama model just by changing `BASE_URL`, `MODEL` and `API_KEY`.
+- **SQLite migrations and backfills.** `CREATE TABLE IF NOT EXISTS` doesn't add new columns to an existing table, so new columns need an `ALTER TABLE` migration. Old rows sometimes need a one-off backfill, like naming chats after their first message.
+- **Rate limiting a public demo.** A free API quota needs protecting: a per-session limit for each visitor, plus a daily cap across everyone stored in the database.
+- **Mocking the model in tests.** Swapping the real model for a fake one that returns a fixed reply lets you test the whole app (limits, logins, saving chats) without spending API quota or waiting on the network.
+
+## Next steps
+
+- **Persistent cloud chats** with [Turso](https://turso.tech) (hosted SQLite), so chats survive restarts on Streamlit Cloud.
+- **A model picker** in the sidebar to switch models per chat.
+- **RAG over documents**: upload files and let the bot answer questions using their content.
+
 ## Stack
 
 | Part | Tool |
 |---|---|
 | UI | Streamlit (`st.chat_message`, `st.chat_input`, `st.write_stream`, sidebar) |
 | AI calls | The `openai` Python library, pointed at any OpenAI-compatible `BASE_URL` |
-| Storage | SQLite (built into Python), with two tables: `conversations` and `messages` |
+| Storage | SQLite (built into Python), with three tables: `conversations`, `messages` and `daily_usage` |
 | Config | `python-dotenv` locally, `st.secrets` on Streamlit Cloud |
 
 ## Project structure
@@ -55,7 +70,7 @@ requirements.txt  Python packages to install
 
 ## Run it locally
 
-You need Python (it was built with Python 3.14) and an API key from an OpenAI-compatible provider. For Google Gemini you can get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
+You need Python 3.11 or newer (it was built with Python 3.14) and an API key from an OpenAI-compatible provider. For Google Gemini you can get a free key at [Google AI Studio](https://aistudio.google.com/apikey).
 
 **1. Get the code and create a virtual environment**
 
@@ -71,7 +86,7 @@ pip install -r requirements.txt
 
 ```
 BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
-MODEL=gemini-flash-latest
+MODEL=gemini-flash-lite-latest
 API_KEY=your-api-key-here
 APP_PASSWORD=choose-a-password
 DAILY_DEMO_LIMIT=100
@@ -111,7 +126,7 @@ Set `MODEL` to a model name that provider offers.
 
    ```toml
    BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-   MODEL = "gemini-flash-latest"
+   MODEL = "gemini-flash-lite-latest"
    API_KEY = "your-api-key-here"
    APP_PASSWORD = "a-long-password-only-you-know"
    DAILY_DEMO_LIMIT = "100"
@@ -124,7 +139,7 @@ Every `git push` to `main` redeploys the app automatically. To change secrets la
 ## Known limitations
 
 - **Chats reset on Streamlit Cloud.** The cloud app runs in a temporary container, so `chats.db` is wiped whenever the app restarts: after a new push, a reboot, or waking up from sleep. Chats are kept permanently only when you run the app locally. To keep cloud chats, you'd switch `db.py` to a hosted database such as Turso (hosted SQLite) or Supabase or Neon (hosted Postgres).
-- **Free-tier rate limits.** Free API keys allow only a limited number of requests per minute and per day. When you hit the limit you'll see a "rate limit reached" message. Wait a minute, or try a lighter model such as `gemini-flash-lite-latest`.
+- **Free-tier rate limits.** Free API keys allow only a limited number of requests per minute and per day. When you hit the limit you'll see a "rate limit reached" message. Wait a minute, or try a different model.
 - **Busy models.** Popular models are sometimes overloaded (error 503). The app shows a "service is busy" message, and you can try again or switch models.
 - **Short memory.** Only the last 20 messages are sent to the model, so in long chats it forgets the earliest messages. The system prompt is always sent.
 - **Visitor limits are simple.** The 5-question limit is per browser session, so refreshing the page starts a new session with 5 fresh questions. The daily cap is what really protects the API quota. It also resets on a redeploy, because it's stored in the same temporary SQLite file.
