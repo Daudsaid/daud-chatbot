@@ -59,6 +59,21 @@ with st.sidebar:
             st.rerun()
 
     st.divider()
+
+    # System prompt for the current chat. The text area submits when you click
+    # outside it or press Cmd+Enter; that rerun lands here and we save it.
+    saved_prompt = db.get_system_prompt(st.session_state.conversation_id)
+    system_prompt = st.text_area(
+        "System prompt for this chat",
+        value=saved_prompt,
+        key=f"system_prompt_{st.session_state.conversation_id}",  # one box per chat
+        placeholder="e.g. You are a patient Python tutor. Keep answers short.",
+    )
+    if system_prompt != saved_prompt:
+        db.set_system_prompt(st.session_state.conversation_id, system_prompt)
+        st.toast("System prompt saved")
+
+    st.divider()
     if st.button("🗑 Delete this chat", width="stretch"):
         db.delete_conversation(st.session_state.conversation_id)
         # Open the newest remaining chat, or a fresh one if none are left
@@ -78,7 +93,9 @@ if prompt:
     # Stream the model's reply; write_stream shows each piece as it
     # arrives and returns the complete text at the end
     with st.chat_message("assistant"):
-        reply = st.write_stream(stream_reply(st.session_state.messages))
+        reply = st.write_stream(
+            stream_reply(st.session_state.messages, system_prompt)
+        )
 
     # Save the reply, unless it's one of our error messages
     # (those are shown once but not kept in the history)

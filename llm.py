@@ -29,9 +29,12 @@ BUSY_MESSAGE = (
 )
 
 
-def stream_reply(messages):
+def stream_reply(messages, system_prompt=""):
     """Send the chat history to the model and yield the reply piece by piece."""
     recent = messages[-MAX_HISTORY:]
+    # The system prompt always goes first and isn't counted in the 20-message cap
+    if system_prompt.strip():
+        recent = [{"role": "system", "content": system_prompt}] + recent
     start = time.time()
     print(f"[llm] request sent ({len(recent)} messages)", flush=True)
     try:

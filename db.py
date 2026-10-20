@@ -19,10 +19,18 @@ def init_db():
         CREATE TABLE IF NOT EXISTS conversations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
+            system_prompt TEXT NOT NULL DEFAULT '',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+    # Migration: databases created before Stage 5 don't have the
+    # system_prompt column (CREATE TABLE IF NOT EXISTS won't add it), so add it
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(conversations)")]
+    if "system_prompt" not in columns:
+        conn.execute(
+            "ALTER TABLE conversations ADD COLUMN system_prompt TEXT NOT NULL DEFAULT ''"
+        )
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS messages (
@@ -73,6 +81,27 @@ def set_title(conversation_id, title):
     """Rename a conversation."""
     conn = connect()
     conn.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
+    conn.commit()
+    conn.close()
+
+
+def get_system_prompt(conversation_id):
+    """Return a conversation's system prompt ('' means none)."""
+    conn = connect()
+    row = conn.execute(
+        "SELECT system_prompt FROM conversations WHERE id = ?", (conversation_id,)
+    ).fetchone()
+    conn.close()
+    return row["system_prompt"] if row else ""
+
+
+def set_system_prompt(conversation_id, system_prompt):
+    """Save a conversation's system prompt."""
+    conn = connect()
+    conn.execute(
+        "UPDATE conversations SET system_prompt = ? WHERE id = ?",
+        (system_prompt, conversation_id),
+    )
     conn.commit()
     conn.close()
 
