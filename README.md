@@ -6,7 +6,7 @@ I built it step by step to learn the basics of AI engineering, so the code is ke
 
 ## Try it
 
-**👉 [Open the live demo](https://YOUR-APP-NAME.streamlit.app)** <!-- TODO: replace with the real app URL -->
+**👉 [Open the live demo](https://daud-chatbot-rqy9azj8f7gycszlvsi9u9.streamlit.app/)**
 
 No sign-up is needed. As a visitor:
 
