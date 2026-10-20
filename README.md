@@ -6,7 +6,7 @@ I built it step by step to learn the basics of AI engineering, so the code is ke
 
 ## Try it
 
-**👉 [Open the live demo](https://daud-chatbot-rqy9azj8f7gycszlvsi9u9.streamlit.app/)**
+**👉 [Open the live demo](https://daud-chatbot.streamlit.app/)**
 
 No sign-up is needed. As a visitor:
 
