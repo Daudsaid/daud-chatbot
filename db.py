@@ -56,6 +56,32 @@ def get_latest_conversation_id():
     return row["id"] if row else None
 
 
+def list_conversations():
+    """Return all conversations (id and title), newest first."""
+    conn = connect()
+    rows = conn.execute("SELECT id, title FROM conversations ORDER BY id DESC").fetchall()
+    conn.close()
+    return [{"id": row["id"], "title": row["title"]} for row in rows]
+
+
+def set_title(conversation_id, title):
+    """Rename a conversation."""
+    conn = connect()
+    conn.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
+    conn.commit()
+    conn.close()
+
+
+def delete_conversation(conversation_id):
+    """Delete a conversation and all of its messages."""
+    conn = connect()
+    # Delete the messages first so none are left pointing at a missing chat
+    conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
+    conn.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+    conn.commit()
+    conn.close()
+
+
 def add_message(conversation_id, role, content):
     """Save one message to a conversation."""
     conn = connect()
