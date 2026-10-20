@@ -145,3 +145,15 @@ Every `git push` to `main` redeploys the app automatically. To change secrets la
 - **Visitor limits are simple.** The 5-question limit is per browser session, so refreshing the page starts a new session with 5 fresh questions. The daily cap is what really protects the API quota. It also resets on a redeploy, because it's stored in the same temporary SQLite file.
 - **Visitor chats are temporary.** There are no accounts, so a visitor's chats disappear from view when they refresh. They're stored in the server's temporary database until the next restart.
 - **One owner.** Owner login is a single shared password, meant for personal use.
+
+## Author
+
+**Daud Abdi**\
+Associate AI Data Engineer · London, UK
+
+- Email: [daudsaidabdi@gmail.com](mailto:daudsaidabdi@gmail.com)
+- GitHub: [github.com/Daudsaid](https://github.com/Daudsaid)
+- LinkedIn: [linkedin.com/in/daudabdi0506](https://www.linkedin.com/in/daudabdi0506)
+- Website: [daudabdi.com](https://daudabdi.com)
+
+Feedback and questions are welcome. Feel free to reach out or open an issue.
