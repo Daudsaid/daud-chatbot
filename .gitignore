@@ -2,3 +2,5 @@
 .env
 chats.db
 __pycache__/
+.streamlit/secrets.toml
+.DS_Store

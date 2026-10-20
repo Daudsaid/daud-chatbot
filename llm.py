@@ -1,15 +1,13 @@
-import os
 import time
 
-from dotenv import load_dotenv
 from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
 
-# Read BASE_URL, MODEL and API_KEY from the .env file
-load_dotenv()
+from config import get_setting
 
-BASE_URL = os.getenv("BASE_URL")
-MODEL = os.getenv("MODEL")
-API_KEY = os.getenv("API_KEY")
+# Read the settings from .env (local) or st.secrets (Streamlit Cloud)
+BASE_URL = get_setting("BASE_URL")
+MODEL = get_setting("MODEL")
+API_KEY = get_setting("API_KEY")
 
 # Only the last 20 messages are sent to the model (this is the bot's "memory")
 MAX_HISTORY = 20

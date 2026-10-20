@@ -1,9 +1,27 @@
+import hmac
+
 import streamlit as st
 
 import db
+from config import get_setting
 from llm import BUSY_MESSAGE, RATE_LIMIT_MESSAGE, stream_reply
 
 st.title("daud-chatbot")
+
+# ----- Password gate -----
+# Runs on every rerun. Until the right password is entered, st.stop() ends
+# the script here, so nothing below (chats, sidebar, API calls) ever runs.
+if not st.session_state.get("authenticated"):
+    password = st.text_input("Password", type="password")
+    if password:
+        # compare_digest takes the same time whether the guess is close or
+        # not, so it doesn't leak hints the way == can
+        if hmac.compare_digest(password.encode(), get_setting("APP_PASSWORD").encode()):
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Wrong password.")
+    st.stop()
 
 # Make sure the database tables exist (does nothing if they already do)
 db.init_db()
