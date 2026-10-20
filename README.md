@@ -4,6 +4,11 @@ A simple, beginner-friendly AI chatbot built in pure Python. It has a chat UI ma
 
 I built it step by step to learn the basics of AI engineering, so the code is kept short and commented.
 
+<p align="center">
+  <img src="screenshots/python-tutor.png" alt="The chatbot acting as a concise Python tutor, answering with a string-reversal function and a one-line explanation" width="49%">
+  <img src="screenshots/streaming-story.png" alt="The chatbot's streamed reply: a 100-word story about a robot learning to cook" width="49%">
+</p>
+
 ## Try it
 
 **👉 [Open the live demo](https://daud-chatbot.streamlit.app/)**
