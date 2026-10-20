@@ -1,6 +1,6 @@
 import streamlit as st
 
-from llm import get_reply
+from llm import stream_reply
 
 st.title("daud-chatbot")
 
@@ -23,9 +23,8 @@ if prompt:
     with st.chat_message("user"):
         st.write(prompt)
 
-    # 2. Ask the model (it gets the history), then save and show the reply
+    # 2. Stream the model's reply; write_stream shows each piece as it
+    #    arrives and returns the complete text at the end
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            reply = get_reply(st.session_state.messages)
-        st.write(reply)
+        reply = st.write_stream(stream_reply(st.session_state.messages))
     st.session_state.messages.append({"role": "assistant", "content": reply})
