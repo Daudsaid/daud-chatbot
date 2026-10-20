@@ -34,8 +34,7 @@ if prompt:
     db.add_message(st.session_state.conversation_id, "user", prompt)
     # First message in this chat? Use it as the chat's title
     if len(st.session_state.messages) == 1:
-        title = prompt if len(prompt) <= 40 else prompt[:40] + "..."
-        db.set_title(st.session_state.conversation_id, title)
+        db.set_title(st.session_state.conversation_id, db.make_title(prompt))
 
 # ----- Sidebar -----
 # A button returns True on the rerun caused by clicking it. We change

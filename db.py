@@ -64,6 +64,11 @@ def list_conversations():
     return [{"id": row["id"], "title": row["title"]} for row in rows]
 
 
+def make_title(text):
+    """Turn a message into a short chat title (max 40 characters)."""
+    return text if len(text) <= 40 else text[:40] + "..."
+
+
 def set_title(conversation_id, title):
     """Rename a conversation."""
     conn = connect()
